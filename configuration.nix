@@ -42,15 +42,6 @@
     };
   };
 
-  networking.firewall = {
-    allowedTCPPorts = [
-      8000
-    ];
-    allowedUDPPorts = [
-      51820 # wireguard
-    ];
-  };
-
   # Set your time zone.
   time.timeZone = "America/New_York";
 
@@ -103,15 +94,43 @@
     wireguard-tools
   ];
 
+  networking.firewall = {
+    allowedTCPPorts = [
+      8000
+      8001
+    ];
+    allowedUDPPorts = [
+      51820 # wireguard
+    ];
+  };
+
   systemd = {
     services = {
-      BikeabilityTileserver = {
+      bikeability-tileserver = {
         description = "bikeability-tileserver.claytonhickey.me";
         wantedBy = [ "default.target" ];
         script = ''#!/bin/sh
           cd /Block/bikeability &&
           ${pkgs.mbtileserver}/bin/mbtileserver
         '';
+      };
+
+      #bikeability-client = {
+      #  description = "bikeability.claytonhickey.me";
+      #  wantedBy = [ "default.target" ];
+      #  script = ''#!/bin/sh
+      #    ${pkgs.webfs}/bin/webfsd -Fj -p 8001 -r /Block/bikeability/bikeability-client
+      #  '';
+      #};
+    };
+  };
+
+  services.nginx = {
+    enable = true;
+    virtualHosts."bikeability-client" = {
+      listen = [ { addr = "0.0.0.0"; port = 8001; } ];
+      locations."/" = {
+        root = "/Block/bikeability/bikeability-client/";
       };
     };
   };
