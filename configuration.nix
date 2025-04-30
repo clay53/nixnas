@@ -92,6 +92,7 @@
     gh
     htop
     wireguard-tools
+    fastfetch
   ];
 
   networking.firewall = {
