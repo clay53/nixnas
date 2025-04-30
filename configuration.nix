@@ -3,7 +3,12 @@
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
 { config, pkgs, inputs, ... }:
-
+let
+  bikeability-tileserver-port = 8000;
+  bikeability-client-port = 8001;
+  wireguardIP = "10.100.0.2";
+  sshPort = 22;
+in
 {
   imports =
     [ # Include the results of the hardware scan.
@@ -21,23 +26,52 @@
   # Enable networking
   networking.networkmanager.enable = true;
 
-  networking.wireguard = {
+  services.logind.lidSwitchExternalPower = "ignore";
+
+  services.openssh = {
     enable = true;
-    interfaces = {
-      wg0 = {
-        ips = [ "10.100.0.2/24" ];
-        listenPort = 51820;
+    openFirewall = false;
+    listenAddresses = [
+      {
+        addr = wireguardIP;
+        port = sshPort;
+      }
+    ];
+  };
 
-        privateKeyFile = "/Block/wireguard-keys/private";
+  networking = {
+    firewall = {
+      interfaces = {
+        wg0 = {
+          allowedTCPPorts = [
+            bikeability-tileserver-port
+            bikeability-client-port
+            sshPort
+          ];
+          allowedUDPPorts = [
+            config.networking.wireguard.interfaces.wg0.listenPort
+          ];
+        };
+      };
+    };
+    wireguard = {
+      enable = true;
+      interfaces = {
+        wg0 = {
+          ips = [ "${wireguardIP}/24" ];
+          listenPort = 51820;
 
-        peers = [
-          {
-            publicKey = "raOzdkhoag+sN2/KXz18F9ncmeTWhdmPJxQJkqsJ7FI=";
-            allowedIPs = [ "10.100.0.0/24" ];
-            endpoint = "50.116.49.95:51820";
-            persistentKeepalive = 25;
-          }
-        ];
+          privateKeyFile = "/Block/wireguard-keys/private";
+
+          peers = [
+            {
+              publicKey = "raOzdkhoag+sN2/KXz18F9ncmeTWhdmPJxQJkqsJ7FI=";
+              allowedIPs = [ "10.100.0.0/24" ];
+              endpoint = "50.116.49.95:51820";
+              persistentKeepalive = 25;
+            }
+          ];
+        };
       };
     };
   };
@@ -95,16 +129,6 @@
     fastfetch
   ];
 
-  networking.firewall = {
-    allowedTCPPorts = [
-      8000
-      8001
-    ];
-    allowedUDPPorts = [
-      51820 # wireguard
-    ];
-  };
-
   systemd = {
     services = {
       bikeability-tileserver = {
@@ -112,24 +136,16 @@
         wantedBy = [ "default.target" ];
         script = ''#!/bin/sh
           cd /Block/bikeability &&
-          ${pkgs.mbtileserver}/bin/mbtileserver
+          ${pkgs.mbtileserver}/bin/mbtileserver --host ${wireguardIP} --port ${builtins.toString bikeability-tileserver-port}
         '';
       };
-
-      #bikeability-client = {
-      #  description = "bikeability.claytonhickey.me";
-      #  wantedBy = [ "default.target" ];
-      #  script = ''#!/bin/sh
-      #    ${pkgs.webfs}/bin/webfsd -Fj -p 8001 -r /Block/bikeability/bikeability-client
-      #  '';
-      #};
     };
   };
 
   services.nginx = {
     enable = true;
     virtualHosts."bikeability-client" = {
-      listen = [ { addr = "0.0.0.0"; port = 8001; } ];
+      listen = [ { addr = wireguardIP; port = bikeability-client-port; } ];
       locations."/" = {
         root = "/Block/bikeability/bikeability-client/";
       };
