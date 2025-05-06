@@ -146,7 +146,7 @@ in
         wantedBy = [ "default.target" ];
         script = ''#!/bin/sh
           cd /Block/bikeability &&
-          ${pkgs.mbtileserver}/bin/mbtileserver --host ${wireguardIP} --port ${builtins.toString bikeability-tileserver-port}
+          ${pkgs.mbtileserver}/bin/mbtileserver --host ${wireguardIP} --port ${builtins.toString bikeability-tileserver-port} --enable-fs-watch
         '';
       };
     };
@@ -167,6 +167,7 @@ in
     cacheDir = jellyfinCacheDir;
     dataDir = jellyfinDataDir;
   };
+
   home-manager.users.clhickey = { pkg, ... }: {
     wayland.windowManager.hyprland= {
       enable = true;
