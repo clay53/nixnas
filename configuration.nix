@@ -4,6 +4,9 @@ let
   bikeability-client-port = 8001;
   wireguardIP = "10.100.0.2";
   sshPort = 22;
+  jellyfinDataDir = "/Block/jellyfin/jellyfin-data";
+  jellyfinCacheDir = "/Block/jellyfin/jellyfin-cache";
+  jellyfinPort = 8096;
 in
 {
   imports =
@@ -43,6 +46,7 @@ in
             bikeability-tileserver-port
             bikeability-client-port
             sshPort
+            jellyfinPort
           ];
           allowedUDPPorts = [
             config.networking.wireguard.interfaces.wg0.listenPort
@@ -106,8 +110,18 @@ in
   # Enable automatic login for the user.
   services.getty.autologinUser = "clhickey";
 
-  # Allow unfree packages
-  nixpkgs.config.allowUnfree = true;
+  nixpkgs = {
+    overlays = [
+      (final: prev: {
+        jellyfin-ffmpeg = prev.jellyfin-ffmpeg.override {
+          ffmpeg_7-full = prev.ffmpeg_7-full.override {
+            withUnfree = true;
+          };
+        };
+      })
+    ];
+    config.allowUnfree = true;
+  };
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
@@ -148,6 +162,11 @@ in
     };
   };
 
+  services.jellyfin = {
+    enable = true;
+    cacheDir = jellyfinCacheDir;
+    dataDir = jellyfinDataDir;
+  };
   home-manager.users.clhickey = { pkg, ... }: {
     wayland.windowManager.hyprland= {
       enable = true;
